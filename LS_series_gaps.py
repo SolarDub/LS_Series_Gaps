@@ -165,8 +165,15 @@ def main():
     # Produce initial (ungapped) signal
     sig = initSignal(time, Amp, frq, phs, addnoise)
 
+    print("Signal initialised")
+    print("")
+    print("Applying window function.")
+    print("Looping through data gap percentages:")
+
     # Loop over data gap percentage size
     for pczero in range(maxrange):
+
+        print("{0:02d} ".format(pczero), end="", flush=True)
 
         # (Re-)Initialize window function
         window = np.ones(N)
@@ -203,6 +210,8 @@ def main():
         fftamps[pczero,:] = response
         LSamps[pczero,:]  = amps
 
+    print("")
+    print("[DONE]")
     # Peak amplitude of fundamental signal component over data gap range
     maxampdec = LSamps[:,99]
 
@@ -289,7 +298,7 @@ def main():
         fig3.savefig("amplitude_decrease_with_increasing_padded_gap.pdf"\
                 , bbox_inches='tight')
 
-    plt.show()
+    plt.show()  
     quit()
 
 if __name__ == '__main__':
