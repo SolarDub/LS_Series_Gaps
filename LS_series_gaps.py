@@ -240,6 +240,7 @@ def main():
     ax = fig1.add_subplot(3,1,2)
     ax.set_xlim(0, math.ceil(max(frqs))) # Define upper/lower limits of plot
     ax.plot(frqs, LSamps[pltgap,:])
+    ax.set_xlabel("Frequency (Cycles per Day)")
     ax.set_ylabel("Amplitude")
     ax.grid(False)
 
