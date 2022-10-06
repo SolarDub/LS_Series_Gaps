@@ -165,9 +165,11 @@ def main():
     # Produce initial (ungapped) signal
     sig = initSignal(time, Amp, frq, phs, addnoise)
 
+    print("")
     print("Signal initialised")
     print("")
     print("Applying window function.")
+    print("")
     print("Looping through data gap percentages:")
 
     # Loop over data gap percentage size
@@ -232,8 +234,9 @@ def main():
     ax.plot(time,maxsig*winplt,"-",c='red')
     ax.plot(time,-maxsig*winplt,"-",c='red')
     ax.plot(time,sigplt,c='C0')
-    ax.set_ylabel("Variation")
+    ax.set_title(str(pltgap) + "% central gap")
     ax.set_xlabel("Time (days)")
+    ax.set_ylabel("Variation")
     ax.grid(False)
 
     # Plot 2 - LS Periodogram
@@ -267,6 +270,7 @@ def main():
     im = ax.imshow(LSamps, extent = (frqs.min(),frqs.max(),100,0)\
                          , aspect='auto', cmap='jet', interpolation='none')
     ax.invert_yaxis()
+    ax.set_title("Lomb-Scargle amplitudes as\na function of central data gap size")
     ax.set_xlabel('Frequency (Cycles per Day)')
     ax.set_ylabel('Central Gap Percentage')
 
