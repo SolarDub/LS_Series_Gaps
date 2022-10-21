@@ -150,6 +150,14 @@ def performLS(time, modsig, osmp):
 
     return frqs, amps
 
+def arrayInit(maxrange, modsig, response, amps):
+
+    sigs    = np.empty(shape=(maxrange,len(modsig)),dtype='float')
+    fftamps = np.empty(shape=(maxrange,len(response)),dtype='float')
+    LSamps  = np.empty(shape=(maxrange,len(amps)),dtype='float')
+
+    return sigs, fftamps,LSamps
+
 #################
 # Main Function #
 #################
@@ -176,9 +184,8 @@ def main():
     for pczero in range(maxrange):
 
         print("{0:02d} ".format(pczero), end="", flush=True)
-
-        # (Re-)Initialize window function
-        window = np.ones(N)
+        
+        window = np.ones(N)   # (Re-)Initialize window function
 
         # Add gap to window function
         if pczero > 0.0:
@@ -187,8 +194,7 @@ def main():
             window = buildWindow(window, pczero)
 
         if pczero == pltgap:
-            # Clone window function for plotting
-            winplt = window
+            winplt = window # Clone window function for plotting
 
         # Modulate signal with window function
         modsig = np.multiply(window,sig)
@@ -199,12 +205,10 @@ def main():
         # Calculate LS Amplitude Spectrum
         frqs, amps = performLS(time, modsig, osmp)
 
+        # On first loop: initialise signal array, FT response spectra
+        # and LS amplitude spectra across data gap array
         if pczero == 0:
-            # Initialise signal array, FT response spectra
-            # and LS amplitude spectra across data gap array
-            sigs    = np.empty(shape=(maxrange,len(modsig)),dtype='float')
-            fftamps = np.empty(shape=(maxrange,len(response)),dtype='float')
-            LSamps  = np.empty(shape=(maxrange,len(amps)),dtype='float')
+            sigs, fftamps, LSamps = arrayInit(maxrange, modsig, response, amps)
 
         # Place current modulated signal, FFT response function
         # and LS amplitude array into respective arrays
