@@ -18,16 +18,18 @@ frq = 10.0  # base frequncy (cycles / day)
 phs = 0     # base phase (rads)
 
 # Switches
-addnoise = 0     # Add noise?
 addtuk   = 1     # Add Tukey filter?
+skipgap  = 0     # Remove zero value data (i.e. skip the zeroed data gap)?
+normLS   = 1     # Normalize Lonb-Scargle amplitudes?
+addnoise = 0     # Add noise?
 outfiles = 0     # Save plots to PDF files?
+
+# Tukey Filter parameters
+tuksz = 31  # Elemental size of filter
 
 # Noise parameters
 nmean = 0    # Set noise mean
 nstd  = 1    # Set noise standard deviation
-
-# Tukey Filter parameters
-tuksz = 101  # Elemental size of filter
 
 # Extra parameters
 maxrange = 100  # Maximum percentage size of centralized data gap = 99%
@@ -72,8 +74,8 @@ def buildWindow(window, pczero):
     window[zrge] = 0.0    # Zero out central region of window function
 
     # Collect top-hat filter for plotting
-    if pczero == pltgap:
-        winth = np.array(list(window))
+#    if pczero == pltgap:
+    winth = np.array(list(window))
                           # Clone top hat version of window function
                           # before application of Tukey filter
                           # to inner edges for plotting and to get
@@ -85,7 +87,7 @@ def buildWindow(window, pczero):
         # Apply Tukey filtering to edges of internal gap
         window = applyTukey(window, llim, rlim)
 
-    return window
+    return window, winth
 
 def applyTukey(window, llim, rlim):
 
@@ -126,6 +128,14 @@ def applyTukey(window, llim, rlim):
 
     return window
 
+def gapSkip(skipgap, x, y):  # Remove data in x based on zeros in y
+
+    if skipgap == 1:
+        nongapvals = np.where(y != 0.0)
+        return x[nongapvals]
+    else:
+        return x
+
 def performFFT(modsig):
 
     C        = fft(modsig, 2048) / (len(modsig)/2.0)
@@ -134,7 +144,7 @@ def performFFT(modsig):
 
     return freq, response
 
-def performLS(time, modsig, osmp):
+def performLS(time, modsig, osmp, normLS):
 
     df   = 1/(osmp*dt*N)          # Frequency spacing
     Nyfq = 0.5/dt                 # Effective Nyquist frequency
@@ -142,11 +152,13 @@ def performLS(time, modsig, osmp):
     frqs = np.arange(df,Nyfq,df)  # Frequency array
     angs = 2*math.pi*frqs         # Angular Frequency array
 
-    # Produce periodogram power spectrum
-    pgram = signal.lombscargle(time, modsig, angs)
-
-    # Corresponding amplitude spectrum
-    amps  = np.sqrt(4*pgram/(N))
+    # Produce periodogram power spectrum & correspoding amplitude spectrum
+    if normLS == 1:
+        pgram = signal.lombscargle(time, modsig, angs, normalize = True)
+        amps  = np.sqrt(4*pgram)
+    else:
+        pgram = signal.lombscargle(time, modsig, angs)
+        amps  = np.sqrt(4*pgram/(N))
 
     return frqs, amps
 
@@ -168,10 +180,10 @@ def main():
     global winth
 
     # Define time array (days)
-    time = dt*np.arange(N)
+    timefull = dt*np.arange(N)
 
     # Produce initial (ungapped) signal
-    sig = initSignal(time, Amp, frq, phs, addnoise)
+    sig = initSignal(timefull, Amp, frq, phs, addnoise)
 
     print("")
     print("Signal initialised")
@@ -191,28 +203,34 @@ def main():
         if pczero > 0.0:
 
             # Construct window function
-            window = buildWindow(window, pczero)
-
-        if pczero == pltgap:
-            winplt = window # Clone window function for plotting
+            window, winth = buildWindow(window, pczero)
 
         # Modulate signal with window function
-        modsig = np.multiply(window,sig)
+        modsigfull = np.multiply(window,sig)
+
+        time = gapSkip(skipgap, timefull, modsigfull)
+        modsig = gapSkip(skipgap, modsigfull, modsigfull)
+
+        if pczero == pltgap:
+            timeplt  = time   # Clone time array for plotting
+            sigplt   = modsig # Clone signal array for plotting
+            winplt   = gapSkip(skipgap, window, modsigfull) # Clone window function for plotting
+            winthplt = gapSkip(skipgap, winth, modsigfull)  # Clone top-hat function for plotting
 
         # Calculate FFT (Unused in this Lomb-Scargle version)
         freq, response = performFFT(modsig)
 
         # Calculate LS Amplitude Spectrum
-        frqs, amps = performLS(time, modsig, osmp)
+        frqs, amps = performLS(time, modsig, osmp, normLS)
 
         # On first loop: initialise signal array, FT response spectra
         # and LS amplitude spectra across data gap array
         if pczero == 0:
-            sigs, fftamps, LSamps = arrayInit(maxrange, modsig, response, amps)
+            sigs, fftamps, LSamps = arrayInit(maxrange, modsigfull, response, amps)
 
         # Place current modulated signal, FFT response function
         # and LS amplitude array into respective arrays
-        sigs[pczero,:]    = modsig
+        sigs[pczero,:]    = modsigfull
         fftamps[pczero,:] = response
         LSamps[pczero,:]  = amps
 
@@ -220,6 +238,8 @@ def main():
     print("[DONE]")
     # Peak amplitude of fundamental signal component over data gap range
     maxampdec = LSamps[:,99]
+
+    print(np.size(timeplt),np.size(sigplt), np.size(winplt), np.size(winthplt))
 
     #########
     # Plots #
@@ -229,15 +249,14 @@ def main():
     fig1 = plt.figure(figsize = (6,9))
 
     # Plot 1 - Signal + window function(s)
-    sigplt = sigs[pltgap,:] # Extract signal series to plot
     maxsig = max(sigplt)    # Signal amplitude (for scaling window fn)
     ax   = fig1.add_subplot(3,1,1)
     ax.set_ylim(-4,4)
-    ax.plot(time,maxsig*winth,"--",c='palegreen')
-    ax.plot(time,-maxsig*winth,"--",c='palegreen')
-    ax.plot(time,maxsig*winplt,"-",c='red')
-    ax.plot(time,-maxsig*winplt,"-",c='red')
-    ax.plot(time,sigplt,c='C0')
+    ax.plot(timeplt,maxsig*winthplt,"--",c='palegreen')
+    ax.plot(timeplt,-maxsig*winthplt,"--",c='palegreen')
+    ax.plot(timeplt,maxsig*winplt,c='red')
+    ax.plot(timeplt,-maxsig*winplt,c='red')
+    ax.plot(timeplt,sigplt,c='C0')
     ax.set_title(str(pltgap) + "% central gap")
     ax.set_xlabel("Time (days)")
     ax.set_ylabel("Variation")
@@ -263,7 +282,7 @@ def main():
     # If switched on, save figure as PDF file
     if outfiles == 1:
         fig1.savefig(\
-        "Signal_FFT_LS-periodogram_for_4-component_signal_with_50pc_padded_gap.pdf"\
+        "Signal_FFT_LS-periodogram_for_4-component_signal_with_50pc_gap.pdf"\
                 , bbox_inches='tight')
 
     # Figure 2 - 2D showing LS periodogram for various gap sizes
@@ -286,7 +305,7 @@ def main():
 
     # If switched on, save figure as PDF file
     if outfiles == 1:
-        fig2.savefig("2D_LS_periodogram_with_increasing_padded_gap.pdf"\
+        fig2.savefig("2D_LS_periodogram_with_increasing_gap.pdf"\
                 , bbox_inches='tight')
 
 
@@ -295,16 +314,16 @@ def main():
 
     ax = fig3.add_subplot(111)
     ax.set_xlim(0,100)
-    ax.set_ylim(0,1)
+    ax.set_ylim(0,1.1)
     ax.plot(maxampdec)
-    ax.set_title("Variation amplitude of signal with\nwidening centralised data gap - padded")
+    ax.set_title("Variation amplitude of signal with\nwidening centralised data gap")
     ax.set_ylabel("Peak Amplitude")
     ax.set_xlabel("Percent Gap")
     ax.grid(False)
 
     # If switched on, save figure as PDF file
     if outfiles == 1:
-        fig3.savefig("amplitude_decrease_with_increasing_padded_gap.pdf"\
+        fig3.savefig("amplitude_decrease_with_increasing_gap.pdf"\
                 , bbox_inches='tight')
 
     plt.show()  
