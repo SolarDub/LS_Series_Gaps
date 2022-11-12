@@ -26,6 +26,7 @@ outfiles = 0     # Save plots to PDF files?
 
 # Tukey Filter parameters
 tuksz = 101  # Elemental size of filter
+             # Taper size = (tuksz + 1)  / 2
 
 # Noise parameters
 nmean = 0    # Set noise mean
