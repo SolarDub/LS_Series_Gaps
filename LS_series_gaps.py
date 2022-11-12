@@ -198,7 +198,7 @@ def main():
         print("{0:02d} ".format(pczero), end="", flush=True)
         
         window = np.ones(N)   # (Re-)Initialize window function
-        winth = window
+        winth  = window       # and inverse top-hat function
 
         # Add gap to window function
         if pczero > 0.0:
@@ -208,7 +208,7 @@ def main():
         # Modulate signal with window function
         modsigfull = np.multiply(window,sig)
 
-        time = gapSkip(padding, timefull, window)
+        time   = gapSkip(padding, timefull, window)
         modsig = gapSkip(padding, modsigfull, window)
 
         # Clone arrays for plotting purposes
