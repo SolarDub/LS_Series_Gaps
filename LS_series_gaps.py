@@ -18,14 +18,14 @@ frq = 10.0  # base frequncy (cycles / day)
 phs = 0     # base phase (rads)
 
 # Switches
-addtuk   = 1     # Add Tukey filter?
-skipgap  = 0     # Remove zero value data (i.e. skip the zeroed data gap)?
-normLS   = 1     # Normalize Lonb-Scargle amplitudes?
+addtuk   = 0     # Add Tukey filter?
+padding  = 1     # Pad zero value data (i.e. include zeros within data gap)?
+normLS   = 1     # Normalize Lomb-Scargle amplitudes?
 addnoise = 0     # Add noise?
 outfiles = 0     # Save plots to PDF files?
 
 # Tukey Filter parameters
-tuksz = 31  # Elemental size of filter
+tuksz = 101  # Elemental size of filter
 
 # Noise parameters
 nmean = 0    # Set noise mean
@@ -128,9 +128,9 @@ def applyTukey(window, llim, rlim):
 
     return window
 
-def gapSkip(skipgap, x, y):  # Remove data in x based on zeros in y
+def gapSkip(padding, x, y):  # Remove data in x based on zeros in y
 
-    if skipgap == 1:
+    if padding == 0:
         nongapvals = np.where(y != 0.0)
         return x[nongapvals]
     else:
@@ -198,24 +198,25 @@ def main():
         print("{0:02d} ".format(pczero), end="", flush=True)
         
         window = np.ones(N)   # (Re-)Initialize window function
+        winth = window
 
         # Add gap to window function
         if pczero > 0.0:
-
             # Construct window function
             window, winth = buildWindow(window, pczero)
 
         # Modulate signal with window function
         modsigfull = np.multiply(window,sig)
 
-        time = gapSkip(skipgap, timefull, modsigfull)
-        modsig = gapSkip(skipgap, modsigfull, modsigfull)
+        time = gapSkip(padding, timefull, window)
+        modsig = gapSkip(padding, modsigfull, window)
 
+        # Clone arrays for plotting purposes
         if pczero == pltgap:
-            timeplt  = time   # Clone time array for plotting
-            sigplt   = modsig # Clone signal array for plotting
-            winplt   = gapSkip(skipgap, window, modsigfull) # Clone window function for plotting
-            winthplt = gapSkip(skipgap, winth, modsigfull)  # Clone top-hat function for plotting
+            timeplt  = time   # Time
+            sigplt   = modsig # Signal
+            winplt   = gapSkip(padding, window, window) # Window function
+            winthplt = gapSkip(padding, winth, window)  # Inverse top-hat function
 
         # Calculate FFT (Unused in this Lomb-Scargle version)
         freq, response = performFFT(modsig)
