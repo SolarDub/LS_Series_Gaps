@@ -18,14 +18,14 @@ frq = 10.0  # base frequncy (cycles / day)
 phs = 0     # base phase (rads)
 
 # Switches
-addtuk   = 0     # Add Tukey filter?
+addtuk   = 1     # Add Tukey filter?
 padding  = 1     # Pad zero value data (i.e. include zeros within data gap)?
 normLS   = 1     # Normalize Lomb-Scargle amplitudes?
 addnoise = 0     # Add noise?
 outfiles = 0     # Save plots to PDF files?
 
 # Tukey Filter parameters
-tuksz = 101  # Elemental size of filter
+tuksz = 11  # Elemental size of filter
              # Taper size = (tuksz + 1)  / 2
 
 # Noise parameters
@@ -250,36 +250,39 @@ def main():
     # Figure 1 - Plots for centralised gap of pltgap
     fig1 = plt.figure(figsize = (6,9))
 
-    # Plot 1 - Signal + window function(s)
-    maxsig = max(sigplt)    # Signal amplitude (for scaling window fn)
-    ax   = fig1.add_subplot(3,1,1)
-    ax.set_ylim(-4,4)
-    ax.plot(timeplt,maxsig*winthplt,"--",c='palegreen')
-    ax.plot(timeplt,-maxsig*winthplt,"--",c='palegreen')
-    ax.plot(timeplt,maxsig*winplt,c='red')
-    ax.plot(timeplt,-maxsig*winplt,c='red')
-    ax.plot(timeplt,sigplt,c='C0')
-    ax.set_title(str(pltgap) + "% central gap")
-    ax.set_xlabel("Time (days)")
-    ax.set_ylabel("Variation")
-    ax.grid(False)
-
-    # Plot 2 - LS Periodogram
-    ax = fig1.add_subplot(3,1,2)
-    ax.set_xlim(0, math.ceil(max(frqs))) # Define upper/lower limits of plot
-    ax.plot(frqs, LSamps[pltgap,:])
-    ax.set_xlabel("Frequency (Cycles per Day)")
-    ax.set_ylabel("Amplitude")
-    ax.grid(False)
+##    # Plot 1 - Signal + window function(s)
+##    maxsig = max(sigplt)    # Signal amplitude (for scaling window fn)
+##    ax   = fig1.add_subplot(3,1,1)
+##    ax.set_ylim(-4,4)
+##    ax.plot(timeplt,maxsig*winthplt,"--",c='palegreen')
+##    ax.plot(timeplt,-maxsig*winthplt,"--",c='palegreen')
+##    ax.plot(timeplt,maxsig*winplt,c='red')
+##    ax.plot(timeplt,-maxsig*winplt,c='red')
+##    ax.plot(timeplt,sigplt,c='C0')
+##    ax.set_title(str(pltgap) + "% central gap")
+##    ax.set_xlabel("Time (days)")
+##    ax.set_ylabel("Variation")
+##    ax.grid(False)
+##
+##    # Plot 2 - LS Periodogram
+##    ax = fig1.add_subplot(3,1,2)
+##    ax.set_xlim(0, math.ceil(max(frqs))) # Define upper/lower limits of plot
+##    ax.plot(frqs, LSamps[pltgap,:])
+##    ax.set_xlabel("Frequency (Cycles per Day)")
+##    ax.set_ylabel("Amplitude")
+##    ax.grid(False)
 
     # Plot 3 - LS Periodogram (zoomed)
     #        - Spectral representation of window function
     ax = fig1.add_subplot(3,1,3)
     ax.set_xlim(8,12)   # Define upper/lower limits of plotw
+    ax.set_ylim(-0.02,1)   # Define upper/lower limits of plotw
     ax.plot(frqs, LSamps[pltgap,:])
     ax.set_xlabel("Frequency (Cycles per Day)")
     ax.set_ylabel("Amplitude")
     ax.grid(False)
+
+    print("Peak amplitude: ",max(LSamps[pltgap,:]))
 
     # If switched on, save figure as PDF file
     if outfiles == 1:
@@ -312,21 +315,40 @@ def main():
 
 
     # Figure 3 - Variation of a single peak's amplitude with increasing gap size
-    fig3=plt.figure(figsize = (6,9))
+    fig3=plt.figure(figsize = (6,6))
 
     ax = fig3.add_subplot(111)
     ax.set_xlim(0,100)
     ax.set_ylim(0,1.1)
     ax.plot(maxampdec)
-    ax.set_title("Variation amplitude of signal with\nwidening centralised data gap")
+#    ax.set_title("Variation amplitude of signal with\nwidening centralised data gap")
     ax.set_ylabel("Peak Amplitude")
-    ax.set_xlabel("Percent Gap")
+    ax.set_xlabel("Central Gap Percentage")
     ax.grid(False)
 
     # If switched on, save figure as PDF file
     if outfiles == 1:
         fig3.savefig("amplitude_decrease_with_increasing_gap.pdf"\
                 , bbox_inches='tight')
+
+    # Figure 4 - Zoom in Figure 2
+    fig4 = plt.figure(figsize = (6,6))
+    ax  = fig4.add_subplot(111)
+
+    im = ax.imshow(LSamps, extent = (frqs.min(),frqs.max(),100,0)\
+                         , aspect='auto', cmap='jet', interpolation='none')
+    ax.invert_yaxis()
+    ax.set_xlim(8,12)   # Define upper/lower limits of plotw
+#    ax.set_title("Lomb-Scargle amplitudes as\na function of central data gap size")
+    ax.set_xlabel('Frequency (Cycles per Day)')
+    ax.set_ylabel('Central Gap Percentage')
+
+    cax = fig4.add_axes([0.12, 0.1, 0.78, 0.8])
+    cax.get_xaxis().set_visible(False)
+    cax.get_yaxis().set_visible(False)
+    cax.patch.set_alpha(0)
+    cax.set_frame_on(False)
+
 
     plt.show()  
     quit()
